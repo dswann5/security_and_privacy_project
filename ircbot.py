@@ -59,6 +59,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
 
     def on_pubmsg(self, c, e):
         a = e.arguments[0].split(":", 1)
+	print a
         if len(a) > 1 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
             if e.source.nick in self.auth_masters:
                 a = ''.join(a[1:]).strip()
