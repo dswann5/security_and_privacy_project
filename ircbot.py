@@ -58,7 +58,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             yield msg[i:i + 300]
 
     def on_pubmsg(self, c, e):
-        a = e.arguments[0].split(":", 1)
+        a = e.arguments[0].split("~") # split based on tilde delimiter
 	print a
         if len(a) > 1 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
             if e.source.nick in self.auth_masters:
@@ -83,6 +83,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             #?tweet botname msg
             if len(a) >= 3:
                 bot = self.get_bot(a[1])
+		print "Botname: " + a[1]
                 if bot:
                     bot.tweet(' '.join(a[2:]))
                     self.msg_channel(
@@ -173,6 +174,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         names = [b.name for b in self.bot_list]
         if name in names:
             bot = self.bot_list[names.index(name)]
+	    print "Found bot!"
         return bot
 
     def shorten(self, url):

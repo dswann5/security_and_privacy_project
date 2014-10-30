@@ -25,6 +25,7 @@ class TwitterBot:
         self.con_s = con_s
         self.acc_k = acc_k
         self.acc_s = acc_s
+	self.uid = uid
         self.twitter = Twython(self.con_k, self.con_s, self.acc_k, self.acc_s)
         self.last_intervals = []
         # total number of trends you want to tweet

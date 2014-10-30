@@ -5,7 +5,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import NoAlertPresentException
-import unittest, time, re
+import unittest, time, re, random
 
 class TwitterAutomation(unittest.TestCase):
     """
@@ -23,27 +23,41 @@ class TwitterAutomation(unittest.TestCase):
         self.accept_next_alert = True
     
     def test_twitter_automation(self):
+        #setup driver and uname/pw
         driver = self.driver
+        randomName = random.choice(open('names.txt').readlines()).lstrip()
+        randomPW = ''.join([random.choice
+                            (string.ascii_letters + string.digits) for n in 
+                            xrange(0, random.randint(8,15))])
+
+        #save new uname/pw combo in password
+        with open('twitter_creds', 'w') as out:
+            out.write(randomName + ":" + randomPW + '\n')
 
         #Initial setup of alias email
-        #TODO: Figure out how to navigate to a new email each time
-
-        driver.get(self.base_url + "/#/superrito.com/gwhan3028/")
+        driver.get(self.base_url + "/")
         driver.find_element_by_xpath("//form[@id='emailForm']/fieldset/div[2]").click()
-        main_window = driver.current_window_handle
         driver.find_element_by_css_selector("span.center.jcf-unselectable").click()
-        
-        #Create twitter tab, change to it, and create a new account with our alias email
-        #TODO: Get and pass values from alias email, randomize password and username
-
         driver.find_element_by_css_selector("li.jcfcalc.item-selected > a > span").click()
         Select(driver.find_element_by_id("fDomain")).select_by_visible_text("@armyspy.com")
+        fakemail_window = driver.current_window_handle
+        
+
+        #Make new twitter window, navigate to it, then wait for it to load
+        body = driver.find_element_by_tag_name("body")
+        body.send_keys(Keys.CONTROL + 't')
+        driver.switch_to.window("New Tab")
+        driver.get("www.twitter.com")
+        #this might not work
+        WebDriverWait(driver, 10).until(EC.title_contains("Twitter"))
+
+        #Getting twitter
         driver.find_element_by_name("user[name]").clear()
-        driver.find_element_by_name("user[name]").send_keys("Greg Davis")
+        driver.find_element_by_name("user[name]").send_keys(randomName)
         driver.find_element_by_name("user[email]").clear()
-        driver.find_element_by_name("user[email]").send_keys("GWhan3028@armyspy.com")
+        driver.find_element_by_name("user[email]").send_keys(Keys.CONTROL, 'v')
         driver.find_element_by_name("user[user_password]").clear()
-        driver.find_element_by_name("user[user_password]").send_keys("johnjohnanjohnan")
+        driver.find_element_by_name("user[user_password]").send_keys(randomPW)
         driver.find_element_by_xpath("(//button[@type='submit'])[3]").click()
         driver.find_element_by_css_selector("button.btn-link").click()
         driver.find_element_by_name("user[remember_me_on_signup]").click()
@@ -52,11 +66,14 @@ class TwitterAutomation(unittest.TestCase):
         driver.find_element_by_css_selector("button.btn.primary-btn").click()
         driver.find_element_by_xpath("(//button[@type='button'])[3]").click()
         driver.find_element_by_link_text("Skip this step").click()
+        twitter_window = driver.current_window_handle
         
         #Return to faux email and confirm our twitter account
+        driver.switch_to.window(fakemail_window)
         driver.find_element_by_css_selector("a > span").click()
         
         #Spawn new window, navigate to our flask app and allow our new bot to authenticate
+        driver.switch_to.window(twitter_window)
         driver.find_element_by_id("allow").click()
     
     def is_element_present(self, how, what):
