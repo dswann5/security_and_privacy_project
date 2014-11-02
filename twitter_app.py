@@ -38,8 +38,6 @@ def finish():
 	access_key = last['oauth_token']
 	access_secret = last['oauth_token_secret']
         uid = str(access_key)[0:10]
-        with open ("problem.fuck", "a") as out:
-                out.write ("Access key: " + access_key + "\n" + "UID: " + uid + "\n")
 	twitter2 = Twython(API_KEY, API_SECRET, access_key, access_secret)
 	bot_name = twitter2.verify_credentials()['screen_name']
 	# write out and update our csv file
@@ -50,4 +48,4 @@ def finish():
 	return "Success!"
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',debug=False, port=80)
+    app.run(host='0.0.0.0',debug=False, port=443)

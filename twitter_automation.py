@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
+#selenium imports
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import NoAlertPresentException
-import unittest, time, re, random, string
+#needed for controlling tor
+import stem.socket, stem.connection
+from stem import Signal
+#other necessary libraries
+import unittest, time, re, random, string, sys
 
 class TwitterAutomation(unittest.TestCase):
     """
@@ -16,11 +21,51 @@ class TwitterAutomation(unittest.TestCase):
     TODO: Find out whether armyspy is the only version of the email that works
     """
     def setUp(self):
-        self.driver = webdriver.Firefox()
-        self.driver.implicitly_wait(30)
+        #basic setup
         self.base_url = "http://www.fakemailgenerator.com/"
         self.verificationErrors = []
         self.accept_next_alert = True
+        
+        #create tor privacy profile
+        #first, create profile and setup a little bit of privacy so we aren't
+        #recognized between runs of our script
+        profile = webdriver.FirefoxProfile()
+        profile.set_preference("places.history.enabled", False)
+        profile.set_preference("privacy.clearonShutdown.passwords", True)
+        profile.set_preference("privacy.clearOnShutdown.siteSettings", True)
+        profile.set_preference("privacy.sanitize.sanitizeOnShutdown", True)
+        profile.set_preference("signon.rememberSignons", False)
+        #cookies expire at the end of the session
+        profile.set_preference("network.cookie.lifetimePolicy", 2)
+        
+        #next, setup our socks proxy
+        profile.set_preference("network.proxy.type", 1)
+        profile.set_preference("network.proxy.socks_version", 5)
+        profile.set_preference("network.proxy.socks", '127.0.0.1')
+        profile.set_preference("network.proxy.socks_port", 9050)
+        profile.set_preference("network.proxy.socks_remote_dns", True)
+
+        #Since we're running headless, we don't need images. 
+        #We get a big speed boost from not loading them
+        profile.set_preference("permissions.default.image", 2)
+
+        #attach to tor control port
+        self.tor_controller = stem.socket.ControlPort(port = 9051)
+        self.control_password = 'afJh18ahjjjb_'
+        stem.connection.authenticate(self.tor_controller, 
+                                     password=self.control_password)
+
+        #check everything is fine with tor, if so, begin
+        self.tor_controller.send('GETINFO status/bootstrap-phase')
+        response = self.tor_controller.recv()
+        if "SUMMARY=\"Done\"" not in str(response):
+            self.tor_controller.signal(Signal.NEWNYM)
+            raise ValueError("Tor error:" + str(response) + "\n")
+
+	#if everything is fine, setup webdriver
+        self.driver = webdriver.Firefox(profile)
+        self.driver.implicitly_wait(30)
+
     
     def test_twitter_automation(self):
         #setup driver and uname/pw
@@ -36,12 +81,6 @@ class TwitterAutomation(unittest.TestCase):
         fake_email = driver.find_element_by_id("cxtEmail").text
         email_name, email_domain = str(fake_email).split('@')
 
-        #save new credentials combo in a file
-        with open('twitter_creds', 'a') as out:
-            out.write(randomName + ":" + randomPW + '\n' + 
-                      self.base_url + "/#/" + email_domain 
-                      + "/" + email_name + "/" + '\n')
-
         #Go to twitter and sign up for an account
         driver.get("www.twitter.com")
         driver.find_element_by_name("user[name]").clear()
@@ -52,12 +91,30 @@ class TwitterAutomation(unittest.TestCase):
         driver.find_element_by_name("user[user_password]").send_keys(randomPW)
         driver.find_element_by_xpath("(//button[@type='submit'])[3]").click()
         time.sleep(3)
-        driver.find_element_by_css_selector("button.btn-link").click()
+        driver.find_element_by_id("username").clear()
+        driver.find_element_by_id("username").send_keys(email_name)
         driver.find_element_by_name("submit_button").click()
-        driver.find_element_by_link_text("Let's go!").click()
+        try:
+            driver.find_element_by_link_text("Let's go!").click()
+        except:
+            #assume we are not allowed to make new twitters from this identity
+            #create new identity and try again
+            stem.connection.authenticate(self.tor_controller, 
+                                         password=self.control_password)
+            self.tor_controller.send(Signal.NEWNYM)
+            print("Account creation failed, trying again with new identity")
+            unittest.main()
+            sys.exit()
+
         driver.find_element_by_link_text("Continue").click()
         driver.find_element_by_partial_link_text("Follow").click()
         driver.find_element_by_link_text("Skip this step").click()
+
+        #save new credentials combo in a file
+        with open('twitter_creds', 'a') as out:
+            out.write(randomName + ":" + randomPW + '\n' + 
+                      self.base_url + "/#/" + email_domain 
+                      + "/" + email_name + "/" + '\n')
         
         #Return to faux email and confirm our twitter account        
         driver.get(self.base_url + "/#/" + email_domain + 

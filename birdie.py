@@ -76,6 +76,7 @@ def main():
     # get bot info
     with open('bots.csv', 'r') as bot_file:
         try:
+	    print "reading from bots.csv"
             read_in = bot_file.readlines()
             # get lines and filter out comments or misconfigured lines
             lines = [l.rstrip() for l in read_in if not l.startswith(
@@ -98,13 +99,15 @@ def main():
                 irc_name, irc_serv, irc_chan))
             # spawn the bots, give them 45 seconds to connect to twitter then return the object
             # we will wait and start the thread for irc as our main event loop
-            jobs = [gevent.spawn(spawn_bots, line) for line in lines]
+            print "spawning bots..."
+	    jobs = [gevent.spawn(spawn_bots, line) for line in lines]
             gevent.joinall(jobs, timeout=45)
             # get all the twitter bots, will raise exception if oauth fails
             bot_list = [bot.value for bot in jobs]
             # join irc as a nodehead , this bot controls many twitter bots and
             # runs campaigns for all
-            port = 6667
+            print "joining irc..."
+	    port = 6667
             if ":" in irc_serv:
                 irc_serv, port = irc_serv.split(":")
             irc_bot = IrcNodeHead(
@@ -113,6 +116,7 @@ def main():
 	    print irc_chan, irc_name, irc_serv, int(port), bot_list
  
 	    irc_bot.start()
+    	    print "joined irc..."
         except Exception as e:
             syslog.syslog(syslog.LOG_ERR, 'BIRDIE: ' + str(e))
             print "ERROR: " + str(e)
