@@ -18,7 +18,6 @@ class TwitterAutomation(unittest.TestCase):
     
     Requires US IP address to avoid phone verification
     TODO: Create metascript of this that humanizes account creation
-    TODO: Find out whether armyspy is the only version of the email that works
     """
     def setUp(self):
         #basic setup
@@ -82,33 +81,7 @@ class TwitterAutomation(unittest.TestCase):
         email_name, email_domain = str(fake_email).split('@')
 
         #Go to twitter and sign up for an account
-        driver.get("www.twitter.com")
-        driver.find_element_by_name("user[name]").clear()
-        driver.find_element_by_name("user[name]").send_keys(randomName)
-        driver.find_element_by_name("user[email]").clear()
-        driver.find_element_by_name("user[email]").send_keys(fake_email)
-        driver.find_element_by_name("user[user_password]").clear()
-        driver.find_element_by_name("user[user_password]").send_keys(randomPW)
-        driver.find_element_by_xpath("(//button[@type='submit'])[3]").click()
-        time.sleep(3)
-        driver.find_element_by_id("username").clear()
-        driver.find_element_by_id("username").send_keys(email_name)
-        driver.find_element_by_name("submit_button").click()
-        try:
-            driver.find_element_by_link_text("Let's go!").click()
-        except:
-            #assume we are not allowed to make new twitters from this identity
-            #create new identity and try again
-            stem.connection.authenticate(self.tor_controller, 
-                                         password=self.control_password)
-            self.tor_controller.send(Signal.NEWNYM)
-            print("Account creation failed, trying again with new identity")
-            unittest.main()
-            sys.exit()
-
-        driver.find_element_by_link_text("Continue").click()
-        driver.find_element_by_partial_link_text("Follow").click()
-        driver.find_element_by_link_text("Skip this step").click()
+        make_twitter(self, fake_email, randomName, randomPW, email_name)
 
         #save new credentials combo in a file
         with open('twitter_creds', 'a') as out:
@@ -131,6 +104,35 @@ class TwitterAutomation(unittest.TestCase):
         driver.find_element_by_id("password").send_keys(randomPW)
         time.sleep(2)
         driver.find_element_by_id("allow").click()
+
+    def make_twitter(self, email, uname, pw, ename):
+        driver.get("www.twitter.com")
+        driver.find_element_by_name("user[name]").clear()
+        driver.find_element_by_name("user[name]").send_keys(uname)
+        driver.find_element_by_name("user[email]").clear()
+        driver.find_element_by_name("user[email]").send_keys(email)
+        driver.find_element_by_name("user[user_password]").clear()
+        driver.find_element_by_name("user[user_password]").send_keys(pw)
+        driver.find_element_by_xpath("(//button[@type='submit'])[3]").click()
+        time.sleep(3)
+        driver.find_element_by_id("username").clear()
+        driver.find_element_by_id("username").send_keys(ename)
+        driver.find_element_by_name("submit_button").click()
+        try:
+            driver.find_element_by_link_text("Let's go!").click()
+        except:
+            #assume we are not allowed to make new twitters from this identity
+            #create new identity and try again
+            stem.connection.authenticate(self.tor_controller, 
+                                         password=self.control_password)
+            self.tor_controller.send(Signal.NEWNYM)
+            print("Account creation failed, trying again with new identity")
+            self.make_twitter(self, email, uname, pw, ename)
+
+        driver.find_element_by_link_text("Continue").click()
+        driver.find_element_by_partial_link_text("Follow").click()
+        driver.find_element_by_link_text("Skip this step").click()
+
     
     def is_element_present(self, how, what):
         try: self.driver.find_element(by=how, value=what)
