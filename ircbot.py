@@ -116,6 +116,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                 c, "usage: ?campaign (all|#hashtag|botname) (url)")
             return
         campaign_type = campaign[1]
+	print campaign_type
         campaign_url = campaign[2]
         # if its a campaign for all the bots this bot controls, generate a
         # short url for each one
@@ -137,8 +138,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             jobs = [gevent.spawn(bot.post_campaign, url)
                     for bot, url in url_tuples.iteritems()]
             gevent.joinall(jobs, timeout=27301)
-            # should log here: time start, time end, bot,url combos for
-            # tracking
+	    syslog.syslog("Starting all campaign with URL " + url)
             self.msg_channel(c, "Campaign complete")
         if campaign_type.startswith('#'):
             self.msg_channel(c, "attacking hashtag " + campaign_type)
@@ -158,7 +158,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                     gevent.spawn_later(intervals[interval] - int(mindt.strftime('%s')), self.bot_list[
                                        interval].tweet, campaign_type + ' ' + shortened)
 
-        else:
+        '''else:
             # if its for a specific bot name, then check to see if this bot has
             # that handle authenticated, then work
             bot = self.get_bot(campaign_type)
@@ -167,7 +167,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                     c, "cannot find %s in bot_list" % campaign_type)
                 return
             # post single campaign
-            bot.post_campaign(self.shorten(campaign_url))
+            bot.post_campaign(self.shorten(campaign_url))'''
 
     def get_bot(self, name):
         bot = None
@@ -262,3 +262,12 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(
             hour=7, minute=0, second=0), self.look_human)
         self.scheduler.run_forever(start_at='once')
+   
+    # bot_name is the useraccount/handle of the bot
+    # uid is the network_id of the bot on that network
+    # network is the social network
+    # action_name is what the bot did (tweet, post, friend, follow, retweet)
+    # details is body of post, tweet or any extra details you want to add
+    def log_bot(bot_name, uid, team_name, target_university, network, action_name, details):
+	syslog.syslog(syslog.LOG_INFO, 
+		'%s,%s,%s,%s,%s,%s,%s' % (network, uid, team_name, target_university, bot_name, action_name, details))

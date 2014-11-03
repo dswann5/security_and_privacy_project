@@ -7,7 +7,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import NoAlertPresentException
 #needed for controlling tor
-import stem.socket, stem.connection
+import stem.socket, stem.connection, stem.process
 from stem import Signal
 #other necessary libraries
 import unittest, time, re, random, string, sys
@@ -47,14 +47,15 @@ class TwitterAutomation(unittest.TestCase):
         #Since we're running headless, we don't need images. 
         #We get a big speed boost from not loading them
         profile.set_preference("permissions.default.image", 2)
-
+	
         #attach to tor control port
         self.tor_controller = stem.socket.ControlPort(port = 9051)
         self.control_password = 'afJh18ahjjjb_'
         stem.connection.authenticate(self.tor_controller, 
                                      password=self.control_password)
 
-        #check everything is fine with tor, if so, begin
+        #check everything is fine with tor, if so, set to only try US-based
+	#IP addresses
         self.tor_controller.send('GETINFO status/bootstrap-phase')
         response = self.tor_controller.recv()
         if "SUMMARY=\"Done\"" not in str(response):
@@ -81,7 +82,7 @@ class TwitterAutomation(unittest.TestCase):
         email_name, email_domain = str(fake_email).split('@')
 
         #Go to twitter and sign up for an account
-        make_twitter(self, fake_email, randomName, randomPW, email_name)
+        self.make_twitter(fake_email,randomName,randomPW,email_name)
 
         #save new credentials combo in a file
         with open('twitter_creds', 'a') as out:
@@ -106,6 +107,7 @@ class TwitterAutomation(unittest.TestCase):
         driver.find_element_by_id("allow").click()
 
     def make_twitter(self, email, uname, pw, ename):
+	driver = self.driver
         driver.get("www.twitter.com")
         driver.find_element_by_name("user[name]").clear()
         driver.find_element_by_name("user[name]").send_keys(uname)
@@ -118,16 +120,17 @@ class TwitterAutomation(unittest.TestCase):
         driver.find_element_by_id("username").clear()
         driver.find_element_by_id("username").send_keys(ename)
         driver.find_element_by_name("submit_button").click()
-        try:
-            driver.find_element_by_link_text("Let's go!").click()
-        except:
+        time.sleep(3)
+#        try:
+	driver.find_element_by_xpath("/html/body/div[2]/div/div/" +
+                                     "div[2]/div/div/div/div[1]/div/a").click()
+ #       except:
             #assume we are not allowed to make new twitters from this identity
             #create new identity and try again
-            stem.connection.authenticate(self.tor_controller, 
-                                         password=self.control_password)
-            self.tor_controller.send(Signal.NEWNYM)
-            print("Account creation failed, trying again with new identity")
-            self.make_twitter(self, email, uname, pw, ename)
+  #          self.tor_controller.send(Signal.NEWNYM)
+   #         print("Account creation failed, trying again with new identity")        
+    #        self.make_twitter(email, uname, pw, ename)
+     #       sys.exit()
 
         driver.find_element_by_link_text("Continue").click()
         driver.find_element_by_partial_link_text("Follow").click()
